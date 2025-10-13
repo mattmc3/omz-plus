@@ -16,7 +16,29 @@ The main features:
 -   _OMZ Plus!_ provides an alternative to the singluar `$ZSH_CUSTOM` variable with a
     new `$zsh_custom` array!
 
-## Installation
+## TLDR
+
+If you use _OMZ Plus!_, you can configure your Oh-My-Zsh setup with git hosted
+Zsh plugins like so:
+
+```zsh
+# sample .zshrc
+ZSH_THEME=romkatv/powerlevel10k
+plugins=(
+  git
+  extract
+  zsh-users/zsh-autosuggestions
+  zsh-users/zsh-completions
+)
+zsh_custom=(
+  $ZDOTDIR/custom
+  $ZDOTDIR/custom.local
+)
+source /path/to/omz-plus.zsh
+source /path/to/oh-my-zsh.zsh
+```
+
+## Install/Update/Uninstall
 
 Add this block to your `.zshrc` right before `source $ZSH/oh-my-zsh.sh`:
 
@@ -37,10 +59,15 @@ source $ZSH/oh-my-zsh.sh
 # ...remaining oh-my-zsh configuration...
 ```
 
+Run `omz_plus_update` to update.
+
+Run `omz_plus_reset` to remove symlinks and then `rm -rf /path/to/omz-plus` to
+uninstall.
+
 ## Details
 
-With _OMZ PLUS!_ you can now use Zsh plugins hosted on GitHub (or another git provider) by
-using URLs or "short repo" syntax in your `$plugins` array.
+With _OMZ PLUS!_ you can now use Zsh plugins hosted on GitHub (or another git provider)
+by using URLs or "short repo" syntax in your `$plugins` array.
 
 ```zsh
 plugins=(
