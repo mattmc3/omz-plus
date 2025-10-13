@@ -108,6 +108,14 @@ Additionally, `$zsh_custom_plus` will symlink your plugins and themes to the sin
 to use both - use `$ZSH_CUSTOM` for only one location, and `$zsh_custom_plus` if you
 use multiple locations.
 
+## References
+
+-   [#11095 - Multiple ZSH_CUSTOM directories](https://github.com/ohmyzsh/ohmyzsh/issues/11095)
+-   [#13200 - Automatically Install plugins](https://github.com/ohmyzsh/ohmyzsh/issues/13200)
+-   [#12156 - Allow symlinked plugins](https://github.com/ohmyzsh/ohmyzsh/issues/12156)
+-   [#12865 - Please add zsh-users' zsh-autosuggestions as an in-built plugin](https://github.com/ohmyzsh/ohmyzsh/issues/12865)
+-   [#12872 - Please add zsh-users' zsh-completions as an in-built plugin](https://github.com/ohmyzsh/ohmyzsh/issues/12872)
+
 ## Misc
 
 Note: This project is not affiliated with Oh-My-Zsh. Use of Microsoft Plus! references are for
