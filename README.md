@@ -23,19 +23,27 @@ Zsh plugins like so:
 
 ```zsh
 # sample .zshrc
+
+# OMZ PLUS! lets you use git repos for your theme
 ZSH_THEME=romkatv/powerlevel10k
+
+# OMZ PLUS! lets you use git repos in your plugins array
 plugins=(
   git
   extract
   zsh-users/zsh-autosuggestions
   zsh-users/zsh-completions
 )
+
+# OMZ PLUS! lets you use multiple paths for your ZSH_CUSTOM
 zsh_custom=(
   $ZDOTDIR/custom
   $ZDOTDIR/custom.local
 )
-source /path/to/omz-plus.zsh
-source /path/to/oh-my-zsh.zsh
+
+# Enable by simply sourcing omz-plus before oh-my-zsh
+source /path/to/omz-plus.sh
+source /path/to/oh-my-zsh.sh
 ```
 
 ## Install/Update/Uninstall
