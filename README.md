@@ -4,10 +4,12 @@
 
 <img align="right" style="float: right;" width="250" alt="Plus!" src="https://github.com/user-attachments/assets/b834d42b-d6d9-4da9-ad7d-98d1b62e79f1" />
 
-[Oh-My-Zsh][ohmyzsh] is an incredibly popular Zsh framework, but it lacks some important features. _OMZ Plus!_ aims to make
-Oh-My-Zsh even better by adding awesome extra features.
+[Oh-My-Zsh][ohmyzsh] is an incredibly popular Zsh framework, but it lacks some
+important features. _OMZ Plus!_ aims to make Oh-My-Zsh even better by adding awesome
+extra features.
 
-_OMZ Plus!_ is named as an homage to Microsoft Plus! which added extras to Windows in the 90's.
+_OMZ Plus!_ is named as an homage to Microsoft Plus! which added extras to Windows in
+the 90's.
 
 The main features:
 
@@ -74,7 +76,7 @@ uninstall.
 
 ## Details
 
-With _OMZ PLUS!_ you can now use Zsh plugins hosted on GitHub (or another git provider)
+With _OMZ Plus!_ you can now use Zsh plugins hosted on GitHub (or another git provider)
 by using URLs or "short repo" syntax in your `$plugins` array.
 
 ```zsh
@@ -99,7 +101,8 @@ The `$ZSH_THEME` variable also now supports git hosted plugins:
 ZSH_THEME=romkatv/powerlevel10k
 ```
 
-Multiple `$ZSH_CUSTOM` directories are supported by using a `$zsh_custom` alternative array.
+Multiple `$ZSH_CUSTOM` directories are supported by using a `$zsh_custom` alternative
+array.
 
 ```zsh
 # Use either ZSH_CUSTOM for a single custom directory...
@@ -111,21 +114,22 @@ zsh_custom=(
 )
 ```
 
-Use _either_ `ZSH_CUSTOM` for a single custom directory or `zsh_custom` multiple. _OMZ PLUS!_
-symlinks all the `zsh_custom` customization directories into the Oh-My-Zsh's singular
-`ZSH_CUSTOM` directory.
+Use _either_ `ZSH_CUSTOM` for a single custom directory or `zsh_custom` multiple. _OMZ
+Plus!_ symlinks all the `zsh_custom` customization directories into the Oh-My-Zsh's
+singular `ZSH_CUSTOM` directory.
 
-Also note that the plugins and themes in `$zsh_custom` locations override each other, meaning
-that if a plugin of the same name is defined in multiple places, the last one wins.
+Also note that the plugins and themes in `$zsh_custom` locations override each other,
+meaning that if a plugin of the same name is defined in multiple places, the last one
+wins.
 
 ## How it all works
 
-_OMZ PLUS!_ will clone your plugins and themes to `$ZSH/custom/repos`, and symlink them
+_OMZ Plus!_ will clone your plugins and themes to `$ZSH/custom/repos`, and symlink them
 into `$ZSH/custom/plugins` and `$ZSH/custom/themes`. Your original `$plugins` values
 will be saved to `$plugins_plus`, and likewise `$ZSH_THEME` saved to `$ZSH_THEME_PLUS`
 so you have the originals if you need them. The standard Oh-My-Zsh `$plugins` array and
 `$ZSH_THEME` variable will be scrubbed so that Oh-My-Zsh gets only values it expects
-and not the enhancements _OMZ PLUS!_ provides.
+and not the enhancements _OMZ Plus!_ provides.
 
 Additionally, `$zsh_custom_plus` will symlink your plugins and themes to the singular
 `$ZSH_CUSTOM` location that Oh-My-Zsh recognizes. Because of this, it is not recommended
@@ -142,8 +146,8 @@ use multiple locations.
 
 ## Misc
 
-Note: This project is not affiliated with Oh-My-Zsh. Use of Microsoft Plus! references are for
-parody purposes.
+Note: This project is not affiliated with Oh-My-Zsh. Use of Microsoft Plus! references
+are for parody purposes.
 
 [ohmyzsh]: https://github.com/ohmyzsh/ohmyzsh
 [zsh-autosuggestions]: https://github.com/zsh-users/zsh-autosuggestions
