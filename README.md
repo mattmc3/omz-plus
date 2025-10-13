@@ -83,17 +83,6 @@ symlinks all the `zsh_custom` customization directories into the Oh-My-Zsh's sin
 Also note that the plugins and themes in `$zsh_custom` locations override each other, meaning
 that if a plugin of the same name is defined in multiple places, the last one wins.
 
-## Use XDG Base Directories
-
-If you don't want to pollute your `$HOME` directory, it's handy to set
-[XDG Base Directory variables][xdg_basedirs]. To make it easy so you don't have to set
-them all yourself, you can now simply set the `USE_XDG_BASEDIRS` variable before
-loading _OMZ PLUS!_ and it will set them for you:
-
-```zsh
-USE_XDG_BASEDIRS=true
-```
-
 ## How it all works
 
 _OMZ PLUS!_ will clone your plugins and themes to `$ZSH/custom/repos`, and symlink them
