@@ -77,10 +77,11 @@ source $ZSH/oh-my-zsh.sh
 To update, run `omz_plus_update`, which will get the latest version of all plugins
 (unless pinned).
 
-Run `omz_plus_reset` if you have any issues to remove any cloned repos and symlinks and return your config back to its pre-_OMZ Plus!_ state.
+Run `omz_plus_reset` if you have any issues. This will remove any cloned repos and
+symlinks, returning your config back to its pre-_OMZ Plus!_ state.
 
 To uninstall completely, run `omz_plus_reset`, then `rm -rf /path/to/omz-plus` to
-remove it, then remove the _OMZ Plus!_ portion of your .zshrc config.
+remove _OMZ Plus!_, and then remove the _OMZ Plus!_ block in your .zshrc config.
 
 ## Details
 
