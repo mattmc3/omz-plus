@@ -40,8 +40,9 @@ plugins=(
   zsh-users/zsh-completions
 )
 
-# You can use multiple custom locations instead of a singular $ZSH_CUSTOM
-# by using the new $zsh_custom array, which symlinks into your $ZSH_CUSTOM.
+# You can use multiple custom locations by using the new zsh_custom array
+# which symlinks plugins, libraries, and themes from multiple locations
+# into your $ZSH_CUSTOM.
 zsh_custom=(
   $ZDOTDIR/custom
   $ZDOTDIR/custom.local
