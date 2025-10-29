@@ -21,8 +21,8 @@ The main features:
 
 The trick with _OMZ Plus!_ is it pre-processes the builtin Oh-My-Zsh variables
 you're already using. By sourcing _OMZ Plus!_ right before you source Oh-My-Zsh, it
-detects git hosted plugins, handles cloning and symlinking, and then scrubs those
-variables so that they are ready for Oh-My-Zsh to use them.
+detects git-hosted plugins, handles cloning and symlinking, and then scrubs those
+variables back to the basics so that they are ready for Oh-My-Zsh to use.
 
 Show me the code!
 
