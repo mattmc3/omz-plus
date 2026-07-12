@@ -104,8 +104,10 @@ plugins=(
     ### enhanced OMZ PLUS! plugins
     # 'user/project' short repo syntax is supported for GitHub-hosted plugins.
     zsh-users/zsh-completions
-    # You can pin a plugin to a particular SHA with repo#SHA syntax
-    zsh-users/zsh-autosuggestions#85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5
+    # You can pin a plugin to a particular SHA with repo@SHA syntax
+    zsh-users/zsh-autosuggestions@85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5
+    # The repo#ref form pins to any ref: a SHA, branch, or tag
+    # zsh-users/zsh-autosuggestions#v0.7.1
     # You can use URLs as well, which is useful for plugins not hosted on GitHub.com
     https://codeberg.org/tranzystorekk/zellij.zsh
 )
@@ -132,7 +134,7 @@ zsh_custom=(
 ```
 
 The `$zsh_custom` array supports git-hosted custom directories too, using the same
-short repo, URL, and `repo#SHA` pinning syntax as `$plugins`. Absolute paths are
+short repo, URL, and `repo@SHA` pinning syntax as `$plugins`. Absolute paths are
 treated as local directories; anything else containing a slash is treated as a git
 repo and cloned to `$ZSH_CUSTOM/repos`.
 
@@ -143,7 +145,7 @@ zsh_custom=(
     # Git-hosted custom directories use repo syntax
     mattmc3/zsh_custom
     # Pinning to a SHA works too
-    # mattmc3/zsh_custom#c093219c458e1d2f721b12da3c9bb704bfc9845a
+    # mattmc3/zsh_custom@c093219c458e1d2f721b12da3c9bb704bfc9845a
 )
 ```
 
@@ -162,7 +164,9 @@ custom places, the last one wins.
 ## How it all works
 
 _OMZ Plus!_ will clone your plugins and themes to `$ZSH/custom/repos`, and symlink them
-into `$ZSH/custom/plugins` and `$ZSH/custom/themes`. Your original `$plugins` values
+into `$ZSH/custom/plugins` and `$ZSH/custom/themes`. Pinned repos embed the short SHA
+in their directory name (eg: `zsh-autosuggestions@85919cd`), so changing or removing
+a pin simply clones fresh rather than mutating an existing checkout. Your original `$plugins` values
 will be saved to `$plugins_plus`, and likewise `$ZSH_THEME` saved to `$ZSH_THEME_PLUS`
 so you have the originals if you need them. The standard Oh-My-Zsh `$plugins` array and
 `$ZSH_THEME` variable will be scrubbed so that Oh-My-Zsh gets only values it expects

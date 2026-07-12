@@ -44,8 +44,31 @@ OMZ_PLUS_VERSION=1.0.0
   : ${ZSH_THEME_PLUS:=$ZSH_THEME}
 
   # Reset the Oh-My-Zsh variables to basic values.
-  plugins=(${${plugins_plus:t}%\#*})
-  ZSH_THEME=${${ZSH_THEME_PLUS:t}%\#*}
+  plugins=(${${plugins_plus:t}%[#@]*})
+  ZSH_THEME=${${ZSH_THEME_PLUS:t}%[#@]*}
+}
+
+##? Parse a repo spec into its parts: reply=(repo pinref repo_dir_name)
+function _omz_plus_parse_repo {
+  emulate -L zsh
+  setopt LOCAL_OPTIONS EXTENDED_GLOB
+  local spec=$1 repo=$1 pinref=
+  # '#ref' always pins (sha, branch, or tag). '@ref' pins only when the ref
+  # is sha-like, since '@' also appears in ssh clone URLs.
+  if [[ "$spec" == *'#'* ]]; then
+    repo="${spec%\#*}"
+    pinref="${spec##*\#}"
+  elif [[ "$spec" == (#b)(*)@([[:xdigit:]](#c7,40)) ]]; then
+    repo="$match[1]"
+    pinref="$match[2]"
+  fi
+  # Pinned repos get the ref embedded in their directory name (full shas
+  # shortened to 7 chars, slashes in ref names made path-safe)
+  local refdir=$pinref
+  [[ "$refdir" == [[:xdigit:]](#c40) ]] && refdir="${refdir[1,7]}"
+  refdir="${refdir//\//-}"
+  typeset -ga reply
+  reply=("$repo" "$pinref" "${repo:t}${refdir:+@$refdir}")
 }
 
 ##? Update OMZ PLUS! and all cloned repos (except pinned ones).
@@ -53,27 +76,14 @@ function omz_plus_update {
   emulate -L zsh
   setopt LOCAL_OPTIONS EXTENDED_GLOB
 
-  local repo plugin commitsha is_pinned
-  local -a pinned_repos
-
-  # Collect pinned repos (those with #commit)
-  for plugin in ${plugins_plus[@]} ${zsh_custom[@]}; do
-    if [[ "$plugin" == *'#'* ]]; then
-      pinned_repos+=("${${plugin%\#*}:t}")
-    fi
-  done
-
-  # Do the same with a pinned theme
-  if [[ "$ZSH_THEME_PLUS" == *'#'* ]]; then
-    pinned_repos+=("${${ZSH_THEME_PLUS%\#*}:t}")
-  fi
+  local repo
 
   echo "Updating OMZ PLUS!..."
   git -C "$OMZ_PLUS" pull --quiet --ff --rebase --autostash
   for repo in $ZSH_CUSTOM/repos/*/.git(N); do
     repo="${repo:a:h}"
-    # Skip update if repo is pinned to a commit
-    if (( ${pinned_repos[(I)${repo:t}]} )); then
+    # Pinned repos embed '@sha' in their directory name and never update
+    if [[ "${repo:t}" == *@* ]]; then
       echo "Skipping pinned repo: ${repo:t}"
       continue
     fi
@@ -126,7 +136,7 @@ function omz_plus_reset {
 function omz_plus_clone {
   emulate -L zsh
   setopt LOCAL_OPTIONS EXTENDED_GLOB NO_MONITOR
-  local plugin repo_dir repo repo_url commitsha initfile omz_initfile current_sha
+  local plugin repo_dir repo repo_url commitsha initfile
   local -a initfiles=() clone_args=()
   local repo_type=$1; shift
   # Ensure required directories exist before cloning/symlinking
@@ -135,14 +145,11 @@ function omz_plus_clone {
     [[ "$plugin" == */* ]] || continue
 
     # Pin repo to a specific commit sha if provided
-    commitsha=""
     clone_args=(--quiet --depth 1 --recursive --shallow-submodules)
-    repo="$plugin"
-    if [[ "$plugin" == *'#'* ]]; then
-      commitsha="${plugin##*\#}"
-      repo="${plugin%\#*}"
-      clone_args+=(--no-checkout)
-    fi
+    _omz_plus_parse_repo "$plugin"
+    repo="$reply[1]" commitsha="$reply[2]"
+    repo_dir=$ZSH_CUSTOM/repos/$reply[3]
+    [[ -z "$commitsha" ]] || clone_args+=(--no-checkout)
 
     repo_url="https://github.com/$repo"
     if [[ $repo == (https://|git@)* ]]; then
@@ -150,7 +157,6 @@ function omz_plus_clone {
       repo="${repo:h:t}/${repo:t}"
     fi
 
-    repo_dir=$ZSH_CUSTOM/repos/${repo:t}
     if [[ "$repo_type" == "plugins" ]]; then
       initfile=$repo_dir/${repo:t}.plugin.zsh
     elif [[ "$repo_type" == "themes" ]]; then
@@ -163,16 +169,15 @@ function omz_plus_clone {
         echo "Cloning $repo..."
         git clone "${clone_args[@]}" $repo_url $repo_dir
         if [[ -n "$commitsha" ]]; then
-          git -C $repo_dir fetch --quiet origin "$commitsha"
-          git -C $repo_dir checkout --quiet "$commitsha"
-        fi
-      elif [[ -n "$commitsha" ]]; then
-        # Repo exists and we want it pinned - check if we need to checkout the pinned commit
-        current_sha=$(git -C $repo_dir rev-parse HEAD 2>/dev/null)
-        if [[ "$current_sha" != "$commitsha"* ]]; then
-          echo "Pinning $repo to $commitsha..."
-          git -C $repo_dir fetch --quiet origin "$commitsha" 2>/dev/null || true
-          git -C $repo_dir checkout --quiet "$commitsha" 2>/dev/null || true
+          # Let git validate the pin; on failure remove the broken clone so
+          # nothing gets cached and the next shell start retries.
+          if ! git -C $repo_dir fetch --quiet origin "$commitsha" ||
+             ! git -C $repo_dir checkout --quiet FETCH_HEAD
+          then
+            echo >&2 "omz-plus: Failed to pin '$repo' to '$commitsha'."
+            rm -rf -- $repo_dir
+            continue
+          fi
         fi
       fi
       # See if there's not a proper init file (custom repos need none).
@@ -181,10 +186,10 @@ function omz_plus_clone {
         (( $#initfiles )) || { echo >&2 "No init file found '$repo'." && continue }
         ln -sf $initfiles[1] $initfile
       fi
-      if [[ "$repo_type" == "plugins" && ! -e "$ZSH_CUSTOM/plugins/${repo_dir:t}" ]]; then
-        ln -s "$repo_dir" "$ZSH_CUSTOM/plugins/${repo_dir:t}"
-      elif [[ "$repo_type" == "themes" && ! -e "$ZSH_CUSTOM/themes/${initfile:t}" ]]; then
-        ln -s "$initfile" "$ZSH_CUSTOM/themes/${initfile:t}"
+      if [[ "$repo_type" == "plugins" ]]; then
+        ln -sfn "$repo_dir" "$ZSH_CUSTOM/plugins/${repo:t}"
+      elif [[ "$repo_type" == "themes" ]]; then
+        ln -sfn "$initfile" "$ZSH_CUSTOM/themes/${initfile:t}"
       fi
     } &
   done
@@ -200,7 +205,8 @@ function omz_plus_setup_zsh_custom {
     # Resolve git repo entries to their clone location. Absolute paths are
     # local directories; anything else containing a slash is a repo.
     if [[ "$custdir" != /* && "$custdir" == */* ]]; then
-      custdir=$ZSH_CUSTOM/repos/${${custdir%\#*}:t}
+      _omz_plus_parse_repo "$custdir"
+      custdir=$ZSH_CUSTOM/repos/$reply[3]
     fi
     if [[ ! -e $custdir ]]; then
       echo >&2 "omz-plus: zsh_custom: Directory not found '$custdir'."
@@ -258,7 +264,8 @@ function omz_plus_setup_zsh_custom {
     local plugin cache_ok=1
     for plugin in ${plugins_plus[@]} $ZSH_THEME_PLUS ${(M)zsh_custom[@]:#[^/]*/*}; do
       [[ "$plugin" == */* ]] || continue
-      [[ -d "$ZSH_CUSTOM/repos/${${plugin%\#*}:t}" ]] || cache_ok=0
+      _omz_plus_parse_repo "$plugin"
+      [[ -d "$ZSH_CUSTOM/repos/$reply[3]" ]] || cache_ok=0
     done
     (( cache_ok )) || return
 
