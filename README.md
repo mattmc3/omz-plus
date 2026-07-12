@@ -15,7 +15,7 @@ The main features:
 -   _OMZ Plus!_ enhances the `$plugins` array so it supports git-hosted plugins!
 -   _OMZ Plus!_ enhances the `$ZSH_THEME` variable so it supports git-hosted themes!
 -   _OMZ Plus!_ provides an alternative to the singular `$ZSH_CUSTOM` variable with a
-    new `$zsh_custom` array!
+    new `$zsh_custom` array, which supports git-hosted custom directories too!
 
 ## TLDR
 
@@ -42,10 +42,11 @@ plugins=(
 
 # You can use multiple custom locations by using the new zsh_custom array
 # which symlinks plugins, libraries, and themes from multiple locations
-# into your $ZSH_CUSTOM.
+# into your $ZSH_CUSTOM. Git repos work here too!
 zsh_custom=(
   $ZDOTDIR/custom
   $ZDOTDIR/custom.local
+  mattmc3/zsh_custom
 )
 
 # Enable OMZ Plus! by simply sourcing it immediately before Oh-My-Zsh.
@@ -127,6 +128,22 @@ alternative array.
 zsh_custom=(
     ${ZDOTDIR:-$HOME}/.zsh_custom_for_home
     ${ZDOTDIR:-$HOME}/.zsh_custom_for_work
+)
+```
+
+The `$zsh_custom` array supports git-hosted custom directories too, using the same
+short repo, URL, and `repo#SHA` pinning syntax as `$plugins`. Absolute paths are
+treated as local directories; anything else containing a slash is treated as a git
+repo and cloned to `$ZSH_CUSTOM/repos`.
+
+```zsh
+zsh_custom=(
+    # Local custom directories use absolute paths
+    ${ZDOTDIR:-$HOME}/.zsh_custom
+    # Git-hosted custom directories use repo syntax
+    mattmc3/zsh_custom
+    # Pinning to a SHA works too
+    # mattmc3/zsh_custom#c093219c458e1d2f721b12da3c9bb704bfc9845a
 )
 ```
 

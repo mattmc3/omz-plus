@@ -57,7 +57,7 @@ function omz_plus_update {
   local -a pinned_repos
 
   # Collect pinned repos (those with #commit)
-  for plugin in ${plugins_plus[@]}; do
+  for plugin in ${plugins_plus[@]} ${zsh_custom[@]}; do
     if [[ "$plugin" == *'#'* ]]; then
       pinned_repos+=("${${plugin%\#*}:t}")
     fi
@@ -90,7 +90,7 @@ function omz_plus_reset {
   omz_plus_reset_symlinks() {
     local dir=$1 link target
     [[ -d "$dir" ]] || return
-    for link in "$dir"/*; do
+    for link in "$dir"/*(N); do
       [[ -L "$link" ]] || continue
       target="${link:A}"
       for custdir in $zsh_custom $ZSH_CUSTOM/repos; do
@@ -153,6 +153,8 @@ function omz_plus_clone {
       initfile=$repo_dir/${repo:t}.plugin.zsh
     elif [[ "$repo_type" == "themes" ]]; then
       initfile=$repo_dir/${repo:t}.zsh-theme
+    else
+      initfile=
     fi
     {
       if [[ ! -d $repo_dir ]]; then
@@ -171,8 +173,8 @@ function omz_plus_clone {
           git -C $repo_dir checkout --quiet "$commitsha" 2>/dev/null || true
         fi
       fi
-      # See if there's not a proper init file.
-      if [[ ! -e $initfile ]]; then
+      # See if there's not a proper init file (custom repos need none).
+      if [[ -n "$initfile" && ! -e $initfile ]]; then
         initfiles=($repo_dir/*.{plugin.zsh,zsh-theme,zsh,sh}(N))
         (( $#initfiles )) || { echo >&2 "No init file found '$repo'." && continue }
         ln -sf $initfiles[1] $initfile
@@ -193,6 +195,11 @@ function omz_plus_setup_zsh_custom {
   setopt LOCAL_OPTIONS EXTENDED_GLOB NO_MONITOR
   local lib plugin theme custdir
   for custdir in $zsh_custom; do
+    # Resolve git repo entries to their clone location. Absolute paths are
+    # local directories; anything else containing a slash is a repo.
+    if [[ "$custdir" != /* && "$custdir" == */* ]]; then
+      custdir=$ZSH_CUSTOM/repos/${${custdir%\#*}:t}
+    fi
     if [[ ! -e $custdir ]]; then
       echo >&2 "omz-plus: zsh_custom: Directory not found '$custdir'."
       continue
@@ -240,6 +247,7 @@ function omz_plus_setup_zsh_custom {
     # Clone and setup $ZSH_CUSTOM for repo plugins
     omz_plus_clone plugins ${plugins_plus[@]}
     omz_plus_clone themes $ZSH_THEME_PLUS
+    omz_plus_clone custom ${(M)zsh_custom[@]:#[^/]*/*}
 
     # Symlink plugins from multiple custom locations into $ZSH_CUSTOM
     omz_plus_setup_zsh_custom
