@@ -166,7 +166,9 @@ custom places, the last one wins.
 _OMZ Plus!_ will clone your plugins and themes to `$ZSH/custom/repos`, and symlink them
 into `$ZSH/custom/plugins` and `$ZSH/custom/themes`. Pinned repos embed the short SHA
 in their directory name (eg: `zsh-autosuggestions@85919cd`), so changing or removing
-a pin simply clones fresh rather than mutating an existing checkout. Your original `$plugins` values
+a pin simply clones fresh rather than mutating an existing checkout. Repos are cloned
+by name, so two repos from different owners sharing a name (eg: `alice/tool` and
+`bob/tool`) collide, and only the first gets cloned. Your original `$plugins` values
 will be saved to `$plugins_plus`, and likewise `$ZSH_THEME` saved to `$ZSH_THEME_PLUS`
 so you have the originals if you need them. The standard Oh-My-Zsh `$plugins` array and
 `$ZSH_THEME` variable will be scrubbed so that Oh-My-Zsh gets only values it expects

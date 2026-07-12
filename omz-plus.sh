@@ -33,10 +33,12 @@ OMZ_PLUS_VERSION=1.0.0
   fi
   mkdir -p "$ZSH_CACHE_DIR/omz-plus"
 
-  # Warn if $ZSH_CUSTOM is in zsh_custom array
+  # Warn if $ZSH_CUSTOM is in zsh_custom array, and remove it since it is
+  # the symlink and clone target for everything else in the array.
   if (( ${zsh_custom[(I)$ZSH_CUSTOM]} )); then
     echo >&2 "omz-plus: warning: \$ZSH_CUSTOM ($ZSH_CUSTOM) found in the zsh_custom array."
-    echo >&2 "If setting \$zsh_custom, do not add \$ZSH_CUSTOM to it."
+    echo >&2 "If setting \$zsh_custom, do not add \$ZSH_CUSTOM to it. Removing it."
+    zsh_custom=(${zsh_custom:#$ZSH_CUSTOM})
   fi
 
   # Set 'plus' variables to store the extended values.
@@ -44,8 +46,8 @@ OMZ_PLUS_VERSION=1.0.0
   : ${ZSH_THEME_PLUS:=$ZSH_THEME}
 
   # Reset the Oh-My-Zsh variables to basic values.
-  plugins=(${${plugins_plus:t}%[#@]*})
-  ZSH_THEME=${${ZSH_THEME_PLUS:t}%[#@]*}
+  plugins=(${${${plugins_plus:t}%[#@]*}%.git})
+  ZSH_THEME=${${${ZSH_THEME_PLUS:t}%[#@]*}%.git}
 }
 
 ##? Parse a repo spec into its parts: reply=(repo pinref repo_dir_name)
@@ -68,7 +70,7 @@ function _omz_plus_parse_repo {
   [[ "$refdir" == [[:xdigit:]](#c40) ]] && refdir="${refdir[1,7]}"
   refdir="${refdir//\//-}"
   typeset -ga reply
-  reply=("$repo" "$pinref" "${repo:t}${refdir:+@$refdir}")
+  reply=("$repo" "$pinref" "${${repo:t}%.git}${refdir:+@$refdir}")
 }
 
 ##? Update OMZ PLUS! and all cloned repos (except pinned ones).
@@ -76,10 +78,14 @@ function omz_plus_update {
   emulate -L zsh
   setopt LOCAL_OPTIONS EXTENDED_GLOB
 
-  local repo
+  local repo prior_sha
 
   echo "Updating OMZ PLUS!..."
-  git -C "$OMZ_PLUS" pull --quiet --ff --rebase --autostash
+  prior_sha=$(git -C "$OMZ_PLUS" rev-parse HEAD)
+  git -C "$OMZ_PLUS" pull --quiet --rebase --autostash
+  if [[ "$(git -C "$OMZ_PLUS" rev-parse HEAD)" != "$prior_sha" ]]; then
+    echo "OMZ PLUS! was updated. Restart your shell to use the new version."
+  fi
   for repo in $ZSH_CUSTOM/repos/*/.git(N); do
     repo="${repo:a:h}"
     # Pinned repos embed '@sha' in their directory name and never update
@@ -88,7 +94,7 @@ function omz_plus_update {
       continue
     fi
     echo "Updating ${repo:t}..."
-    git -C "$repo" pull --quiet --ff --rebase --autostash
+    git -C "$repo" pull --quiet --rebase --autostash
   done
 }
 
@@ -98,7 +104,7 @@ function omz_plus_reset {
   setopt LOCAL_OPTIONS EXTENDED_GLOB
 
   omz_plus_reset_symlinks() {
-    local dir=$1 link target
+    local dir=$1 link target custdir
     [[ -d "$dir" ]] || return
     for link in "$dir"/*(N); do
       [[ -L "$link" ]] || continue
@@ -137,7 +143,7 @@ function omz_plus_clone {
   emulate -L zsh
   setopt LOCAL_OPTIONS EXTENDED_GLOB NO_MONITOR
   local plugin repo_dir repo repo_url commitsha initfile
-  local -a initfiles=() clone_args=()
+  local -a initfiles=() clone_args=() seen_dirs=()
   local repo_type=$1; shift
   # Ensure required directories exist before cloning/symlinking
   mkdir -p "$ZSH_CUSTOM/repos" "$ZSH_CUSTOM/plugins" "$ZSH_CUSTOM/themes"
@@ -156,6 +162,11 @@ function omz_plus_clone {
       repo_url="$repo"
       repo="${repo:h:t}/${repo:t}"
     fi
+    repo="${repo%.git}"
+
+    # Avoid racing clones when duplicate specs resolve to the same repo
+    (( ${seen_dirs[(I)$repo_dir]} )) && continue
+    seen_dirs+=("$repo_dir")
 
     if [[ "$repo_type" == "plugins" ]]; then
       initfile=$repo_dir/${repo:t}.plugin.zsh
@@ -176,14 +187,14 @@ function omz_plus_clone {
           then
             echo >&2 "omz-plus: Failed to pin '$repo' to '$commitsha'."
             rm -rf -- $repo_dir
-            continue
+            exit 1
           fi
         fi
       fi
       # See if there's not a proper init file (custom repos need none).
       if [[ -n "$initfile" && ! -e $initfile ]]; then
         initfiles=($repo_dir/*.{plugin.zsh,zsh-theme,zsh,sh}(N))
-        (( $#initfiles )) || { echo >&2 "No init file found '$repo'." && continue }
+        (( $#initfiles )) || { echo >&2 "No init file found '$repo'."; exit 1 }
         ln -sf $initfiles[1] $initfile
       fi
       if [[ "$repo_type" == "plugins" ]]; then
@@ -200,7 +211,7 @@ function omz_plus_clone {
 function omz_plus_setup_zsh_custom {
   emulate -L zsh
   setopt LOCAL_OPTIONS EXTENDED_GLOB NO_MONITOR
-  local lib plugin theme custdir
+  local lib plugin theme custdir file
   for custdir in $zsh_custom; do
     # Resolve git repo entries to their clone location. Absolute paths are
     # local directories; anything else containing a slash is a repo.
