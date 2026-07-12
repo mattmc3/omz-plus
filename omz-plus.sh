@@ -105,6 +105,8 @@ function omz_plus_reset {
   # Remove symlinks that point to repos
   omz_plus_reset_symlinks "$ZSH_CUSTOM/plugins"
   omz_plus_reset_symlinks "$ZSH_CUSTOM/themes"
+  omz_plus_reset_symlinks "$ZSH_CUSTOM/lib"
+  omz_plus_reset_symlinks "$ZSH_CUSTOM"
   unfunction omz_plus_reset_symlinks
 
   # Remove the repos directory
@@ -206,16 +208,16 @@ function omz_plus_setup_zsh_custom {
     fi
     mkdir -p $ZSH_CUSTOM/lib $ZSH_CUSTOM/plugins $ZSH_CUSTOM/themes
     for lib in $custdir/lib/*.zsh(N); do
-      ln -sf $lib $ZSH_CUSTOM/lib/${lib:t}
+      ln -sfn $lib $ZSH_CUSTOM/lib/${lib:t}
     done
     for plugin in $custdir/plugins/*(N); do
-      ln -sf $plugin $ZSH_CUSTOM/plugins/${plugin:t}
+      ln -sfn $plugin $ZSH_CUSTOM/plugins/${plugin:t}
     done
     for theme in $custdir/themes/*.zsh-theme(N); do
-      ln -sf $theme $ZSH_CUSTOM/themes/${theme:t}
+      ln -sfn $theme $ZSH_CUSTOM/themes/${theme:t}
     done
     for file in $custdir/*.zsh(N); do
-      ln -sf $file $ZSH_CUSTOM/${file:t}
+      ln -sfn $file $ZSH_CUSTOM/${file:t}
     done
   done
 }
@@ -251,6 +253,14 @@ function omz_plus_setup_zsh_custom {
 
     # Symlink plugins from multiple custom locations into $ZSH_CUSTOM
     omz_plus_setup_zsh_custom
+
+    # Skip caching if any repo failed to clone so the next start retries.
+    local plugin cache_ok=1
+    for plugin in ${plugins_plus[@]} $ZSH_THEME_PLUS ${(M)zsh_custom[@]:#[^/]*/*}; do
+      [[ "$plugin" == */* ]] || continue
+      [[ -d "$ZSH_CUSTOM/repos/${${plugin%\#*}:t}" ]] || cache_ok=0
+    done
+    (( cache_ok )) || return
 
     # Save cache
     mkdir -p "${cache_file:h}"
