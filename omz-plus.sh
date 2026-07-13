@@ -4,7 +4,7 @@
 
 # If OMZ_PLUS is not defined, use the current script's directory.
 [[ -n "$OMZ_PLUS" ]] || export OMZ_PLUS="${${(%):-%x}:a:h}"
-OMZ_PLUS_VERSION=1.0.0
+OMZ_PLUS_VERSION=1.1.0
 
 # Set variables and configure OMZ PLUS!
 () {
@@ -110,7 +110,8 @@ function omz_plus_reset {
       [[ -L "$link" ]] || continue
       target="${link:A}"
       for custdir in $zsh_custom $ZSH_CUSTOM/repos; do
-        if [[ ! -e "$target" || "$target" == "$custdir"* ]]; then
+        # :A both sides or symlinked paths (eg: /tmp on macOS) won't match
+        if [[ ! -e "$target" || "$target" == "${custdir:A}"* ]]; then
           echo "Removing symlink: $link"
           rm -f -- "$link"
         fi

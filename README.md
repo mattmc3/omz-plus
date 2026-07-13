@@ -187,6 +187,17 @@ use multiple locations.
 -   [#12865 - Please add zsh-users' zsh-autosuggestions as an in-built plugin](https://github.com/ohmyzsh/ohmyzsh/issues/12865)
 -   [#12872 - Please add zsh-users' zsh-completions as an in-built plugin](https://github.com/ohmyzsh/ohmyzsh/issues/12872)
 
+## Testing
+
+Tests use [bats](https://github.com/bats-core/bats-core) (`brew install bats-core`)
+and clone small repos from GitHub, so they need network access:
+
+```zsh
+bats tests
+# ...or with just:
+just test
+```
+
 ## Misc
 
 Note: This project is not affiliated with Oh-My-Zsh. Use of Microsoft Plus! references
