@@ -16,8 +16,10 @@ setup() { setup_sandbox; }
 }
 
 @test "reset removes repos and every symlink setup created" {
-  mkdir -p "$SANDBOX/local/plugins/myplugin" "$SANDBOX/local/lib"
+  mkdir -p "$SANDBOX/local/plugins/myplugin" "$SANDBOX/local/lib" "$ZSH/lib"
   echo 'echo hi' > "$SANDBOX/local/plugins/myplugin/myplugin.plugin.zsh"
+  # stock counterpart so the lib symlink actually gets created
+  echo '# stock' > "$ZSH/lib/mylib.zsh"
   echo '# lib' > "$SANDBOX/local/lib/mylib.zsh"
   echo '# root' > "$SANDBOX/local/rootfile.zsh"
   run_omz "" "$SANDBOX/local mattmc3/zsh_custom" "" 'omz_plus_reset' > /dev/null

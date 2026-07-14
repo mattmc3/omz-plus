@@ -14,8 +14,10 @@ setup() { setup_sandbox; }
 }
 
 @test "local and repo custom dirs both symlink into ZSH_CUSTOM" {
-  mkdir -p "$SANDBOX/local/plugins/myplugin" "$SANDBOX/local/lib"
+  mkdir -p "$SANDBOX/local/plugins/myplugin" "$SANDBOX/local/lib" "$ZSH/lib"
   echo 'echo hi' > "$SANDBOX/local/plugins/myplugin/myplugin.plugin.zsh"
+  # lib links only exist to shadow a stock lib file of the same name
+  echo '# stock' > "$ZSH/lib/mylib.zsh"
   echo '# lib' > "$SANDBOX/local/lib/mylib.zsh"
   run run_omz "" "$SANDBOX/local mattmc3/zsh_custom"
   [ -L "$ZSH_CUSTOM/plugins/myplugin" ]
@@ -28,6 +30,16 @@ setup() { setup_sandbox; }
   grep -q "zsh_custom_prior=(.*mattmc3/zsh_custom" "$ZSH_CACHE_DIR/omz-plus/prior.zsh"
   run run_omz "" "mattmc3/zsh_custom"
   [ -z "$output" ]
+}
+
+@test "nuked ZSH_CUSTOM is rebuilt despite a cache hit" {
+  mkdir -p "$SANDBOX/local/plugins/myplugin"
+  echo 'echo hi' > "$SANDBOX/local/plugins/myplugin/myplugin.plugin.zsh"
+  run_omz "" "$SANDBOX/local" > /dev/null
+  [ -L "$ZSH_CUSTOM/plugins/myplugin" ]
+  rm -rf "$ZSH_CUSTOM"
+  run_omz "" "$SANDBOX/local" > /dev/null
+  [ -L "$ZSH_CUSTOM/plugins/myplugin" ]
 }
 
 @test "ZSH_CUSTOM inside zsh_custom warns and is removed" {

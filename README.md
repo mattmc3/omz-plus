@@ -75,13 +75,13 @@ source $ZSH/oh-my-zsh.sh
 # ...remaining oh-my-zsh configuration...
 ```
 
-To update, run `omz_plus_update`, which will get the latest version of all plugins
+To update, run `omz+ update`, which will get the latest version of all plugins
 (unless pinned).
 
-Run `omz_plus_reset` if you have any issues. This will remove any cloned repos and
+Run `omz+ reset` if you have any issues. This will remove any cloned repos and
 symlinks, returning your config back to its pre-_OMZ Plus!_ state.
 
-To uninstall completely, run `omz_plus_reset`, then `rm -rf /path/to/omz-plus` to
+To uninstall completely, run `omz+ reset`, then `rm -rf /path/to/omz-plus` to
 remove _OMZ Plus!_, and then remove the _OMZ Plus!_ block in your .zshrc config.
 
 ## Details
@@ -159,7 +159,77 @@ uses `ZSH_CUSTOM` as a symlink and git clone target, so beware!
 
 Also note that the plugins and themes in `zsh_custom` locations override each other,
 meaning that if a plugin, library, or theme of the same name is defined in multiple
-custom places, the last one wins.
+custom places, the last one wins. Overriding _stock_ Oh-My-Zsh plugins is a different
+story — see [Shadowing stock Oh-My-Zsh](#shadowing-stock-oh-my-zsh).
+
+## Shadowing stock Oh-My-Zsh
+
+Oh-My-Zsh prefers `$ZSH_CUSTOM/plugins/<name>` over its own `$ZSH/plugins/<name>`, so
+a `zsh_custom` collection containing a plugin named `git` or `extract` would silently
+replace the stock plugin. _OMZ Plus!_ puts you in control of this "shadowing" with a
+per-collection policy:
+
+-   **Local collections** (absolute paths) shadow stock by default. A directory you
+    authored behaves the way `$ZSH_CUSTOM` always has — your override is deliberate.
+-   **Git-hosted collections** do _not_ shadow stock by default. Colliding plugins,
+    libraries, and themes are skipped, and stock wins. A third-party collection can't
+    swap out `git` behind your back.
+
+Configure the policy with a single `shadow` zstyle, set before sourcing
+`omz-plus.sh`. The context is `:omz-plus:custom:<repo>:<kind>:<item>`, where
+`<kind>` is `plugins`, `lib`, or `themes`:
+
+```zsh
+# Allow one plugin from this collection to shadow stock
+zstyle ':omz-plus:custom:mattmc3/zsh_custom:plugins:git' shadow yes
+
+# Or allow all of the collection's plugins with a zstyle pattern...
+zstyle ':omz-plus:custom:mattmc3/zsh_custom:plugins:*' shadow yes
+# ...with exceptions, since more specific contexts win
+zstyle ':omz-plus:custom:mattmc3/zsh_custom:plugins:extract' shadow no
+```
+
+`<repo>` is the `zsh_custom` entry itself, with any `@sha`/`#ref` pin and
+`.git` suffix removed — `mattmc3/zsh_custom@c093219c458e1d2f721b12da3c9bb704bfc9845a`
+and `mattmc3/zsh_custom` are the same collection, and `joe/zsh_custom` never inherits
+`matt/zsh_custom`'s policy.
+Local collections use their full path
+(`:omz-plus:custom:/home/me/.zsh_custom:plugins:git`). `<item>` is the name as it
+appears in `$ZSH_CUSTOM`: plugin directory name (`git`), library file name
+(`git.zsh`), or theme file name (`agnoster.zsh-theme`). When in doubt,
+`omz+ shadows` prints the exact context for every collision.
+
+A note on library files: Oh-My-Zsh loads a custom `lib/<file>.zsh` _instead of_ the
+stock file of the same name — wholesale replacement — and never loads custom lib
+files with non-stock names. That makes lib shadowing the riskiest kind, so prefer
+enabling lib files by exact name (`:lib:git.zsh`) over collection-wide patterns. A
+bare `:*` pattern covers lib too; to allow everything else but keep lib out:
+
+```zsh
+zstyle ':omz-plus:custom:mattmc3/zsh_custom:*' shadow yes
+zstyle ':omz-plus:custom:mattmc3/zsh_custom:lib:*' shadow no
+```
+
+Skipped shadows aren't silent. Setup prints a one-time notice when it skips colliding
+items, and `omz+ shadows` lists every stock collision with its current winner and
+the exact zstyle to flip it:
+
+```
+plugins/git: stock (mattmc3/zsh_custom skipped; enable with: zstyle ':omz-plus:custom:mattmc3/zsh_custom:plugins:git' shadow yes)
+plugins/fzf: mattmc3/zsh_custom (shadows stock; disable with: zstyle ':omz-plus:custom:mattmc3/zsh_custom:plugins:fzf' shadow no)
+```
+
+Shadow zstyles belong in your `.zshrc` before `source omz-plus.sh`. Changes there
+apply automatically on the next shell start. To apply zstyle edits made in a live
+shell right away, run `omz+ update`, which also refreshes collection symlinks
+after pulling repo updates.
+
+Shadow policy only governs collection-vs-stock. Between collections, array order still
+decides: last one wins.
+
+**NOTE:** Prior to v1.2.0, all collections shadowed stock silently. If you relied on a
+git-hosted collection overriding stock plugins, opt back in with
+`zstyle ':omz-plus:custom:<repo>:*' shadow yes`.
 
 ## How it all works
 

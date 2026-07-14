@@ -11,20 +11,25 @@ setup_sandbox() {
   export ZSH_CUSTOM="$ZSH/custom"
   export ZSH_CACHE_DIR="$SANDBOX/cache"
   export OMZ_PLUS="${OMZ_PLUS:-$BATS_TEST_DIRNAME/..}"
-  export GIT_TERMINAL_PROMPT=0
+  # Fail fast on bad clones: no terminal prompts, no askpass GUI, and an
+  # empty credential.helper clears any configured helper (eg: osxkeychain).
+  export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=echo SSH_ASKPASS=echo
+  export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=credential.helper GIT_CONFIG_VALUE_0=
   mkdir -p "$SANDBOX"
 }
 
 # Source omz-plus.sh in a fresh zsh with the given config, then run any
-# extra zsh code. Args: plugins, zsh_custom, ZSH_THEME, extra zsh code.
+# extra zsh code. Args: plugins, zsh_custom, ZSH_THEME, extra zsh code,
+# pre-source zsh code (eg: zstyle config).
 run_omz() {
-  local plugins_spec="${1:-}" custom_spec="${2:-}" theme="${3:-}" extra="${4:-}"
+  local plugins_spec="${1:-}" custom_spec="${2:-}" theme="${3:-}" extra="${4:-}" pre="${5:-}"
   zsh -f -c "
     export ZSH='$ZSH' ZSH_CUSTOM='$ZSH_CUSTOM' ZSH_CACHE_DIR='$ZSH_CACHE_DIR'
     export OMZ_PLUS='$OMZ_PLUS' GIT_TERMINAL_PROMPT=0
     plugins=(git $plugins_spec)
     ZSH_THEME='$theme'
     zsh_custom=($custom_spec)
+    $pre
     source \"\$OMZ_PLUS/omz-plus.sh\"
     $extra
   " 2>&1

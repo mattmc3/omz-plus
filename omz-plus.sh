@@ -4,7 +4,7 @@
 
 # If OMZ_PLUS is not defined, use the current script's directory.
 [[ -n "$OMZ_PLUS" ]] || export OMZ_PLUS="${${(%):-%x}:a:h}"
-OMZ_PLUS_VERSION=1.1.0
+OMZ_PLUS_VERSION=1.2.0
 
 # Set variables and configure OMZ PLUS!
 () {
@@ -73,6 +73,102 @@ function _omz_plus_parse_repo {
   reply=("$repo" "$pinref" "${${repo:t}%.git}${refdir:+@$refdir}")
 }
 
+##? OMZ PLUS! command wrapper.
+function omz+ {
+  emulate -L zsh
+  local cmd=$1
+  case "$cmd" in
+    update|reset|shadows)
+      shift
+      omz_plus_$cmd "$@"
+      ;;
+    version|--version|-v)
+      echo "omz-plus $OMZ_PLUS_VERSION"
+      ;;
+    help|--help|-h|'')
+      print -r -- "Usage: omz+ <command>"
+      print -r -- "Commands:"
+      print -r -- "  update   Update OMZ PLUS! and all unpinned repos"
+      print -r -- "  reset    Remove cloned repos, symlinks, and cache"
+      print -r -- "  shadows  List collection items colliding with stock OMZ"
+      print -r -- "  version  Show the OMZ PLUS! version"
+      ;;
+    *)
+      echo >&2 "omz+: Unknown command '$cmd'. Run 'omz+ help'."
+      return 1
+      ;;
+  esac
+}
+
+##? Resolve a zsh_custom entry: reply=(name scope dir)
+##? name: the entry itself, minus any pin and '.git', for zstyle lookups
+##? scope: 'local' for absolute paths, 'remote' for cloned repos
+function _omz_plus_resolve_custdir {
+  emulate -L zsh
+  local entry=$1
+  if [[ "$entry" != /* && "$entry" == */* ]]; then
+    _omz_plus_parse_repo "$entry"
+    reply=("${reply[1]%.git}" remote "$ZSH_CUSTOM/repos/$reply[3]")
+  else
+    reply=("$entry" local "$entry")
+  fi
+}
+
+##? Decide whether a collection item may shadow its stock OMZ counterpart.
+##? Args: <colname> <local|remote> <plugins|lib|themes> <item>
+##? Looks up the 'shadow' style for ':omz-plus:custom:<colname>:<kind>:<item>';
+##? zstyle's most-specific-pattern-wins handles per-item exceptions.
+function _omz_plus_shadow_allowed {
+  emulate -L zsh
+  local ctx=":omz-plus:custom:$1:$3:$4" scope=$2 setting
+  if zstyle -s "$ctx" shadow setting; then
+    zstyle -t "$ctx" shadow
+  else
+    [[ "$scope" == local ]]
+  fi
+}
+
+##? Remove a symlink left behind by a previously allowed shadow.
+function _omz_plus_unlink_denied {
+  emulate -L zsh
+  local link=$1 custdir=$2
+  # :A both sides or symlinked paths (eg: /tmp on macOS) won't match
+  if [[ -L "$link" && "${link:A}" == "${custdir:A}"/* ]]; then
+    rm -f -- "$link"
+  fi
+}
+
+##? List collection items that collide with stock Oh-My-Zsh names.
+function omz_plus_shadows {
+  emulate -L zsh
+  setopt LOCAL_OPTIONS EXTENDED_GLOB
+  local custdir colname scope kind item name found=0
+  local -a items
+  for custdir in $zsh_custom; do
+    _omz_plus_resolve_custdir "$custdir"
+    colname=$reply[1] scope=$reply[2] custdir=$reply[3]
+    [[ -e $custdir ]] || continue
+    for kind in plugins lib themes; do
+      case $kind in
+        plugins) items=($custdir/plugins/*(N)) ;;
+        lib)     items=($custdir/lib/*.zsh(N)) ;;
+        themes)  items=($custdir/themes/*.zsh-theme(N)) ;;
+      esac
+      for item in $items; do
+        name=${item:t}
+        [[ -e $ZSH/$kind/$name ]] || continue
+        found=1
+        if _omz_plus_shadow_allowed $colname $scope $kind $name; then
+          echo "$kind/$name: $colname (shadows stock; disable with: zstyle ':omz-plus:custom:$colname:$kind:$name' shadow no)"
+        else
+          echo "$kind/$name: stock ($colname skipped; enable with: zstyle ':omz-plus:custom:$colname:$kind:$name' shadow yes)"
+        fi
+      done
+    done
+  done
+  (( found )) || echo "No stock collisions found."
+}
+
 ##? Update OMZ PLUS! and all cloned repos (except pinned ones).
 function omz_plus_update {
   emulate -L zsh
@@ -96,6 +192,10 @@ function omz_plus_update {
     echo "Updating ${repo:t}..."
     git -C "$repo" pull --quiet --rebase --autostash
   done
+
+  # Reapply collection symlinks so pulled changes and live zstyle edits
+  # take effect without waiting for a new shell.
+  omz_plus_setup_zsh_custom
 }
 
 ##? Cleanup OMZ PLUS! by resetting everything it downloaded, and all its symlinks.
@@ -212,32 +312,57 @@ function omz_plus_clone {
 function omz_plus_setup_zsh_custom {
   emulate -L zsh
   setopt LOCAL_OPTIONS EXTENDED_GLOB NO_MONITOR
-  local lib plugin theme custdir file
+  local lib plugin theme custdir file colname scope
+  local -i skipped=0
   for custdir in $zsh_custom; do
     # Resolve git repo entries to their clone location. Absolute paths are
     # local directories; anything else containing a slash is a repo.
-    if [[ "$custdir" != /* && "$custdir" == */* ]]; then
-      _omz_plus_parse_repo "$custdir"
-      custdir=$ZSH_CUSTOM/repos/$reply[3]
-    fi
+    _omz_plus_resolve_custdir "$custdir"
+    colname=$reply[1] scope=$reply[2] custdir=$reply[3]
     if [[ ! -e $custdir ]]; then
       echo >&2 "omz-plus: zsh_custom: Directory not found '$custdir'."
       continue
     fi
     mkdir -p $ZSH_CUSTOM/lib $ZSH_CUSTOM/plugins $ZSH_CUSTOM/themes
     for lib in $custdir/lib/*.zsh(N); do
+      # OMZ only loads a custom lib file in place of a stock one of the
+      # same name, so a non-colliding lib file gets no symlink at all.
+      if [[ ! -e $ZSH/lib/${lib:t} ]]; then
+        _omz_plus_unlink_denied $ZSH_CUSTOM/lib/${lib:t} $custdir
+        continue
+      fi
+      if ! _omz_plus_shadow_allowed $colname $scope lib ${lib:t}; then
+        _omz_plus_unlink_denied $ZSH_CUSTOM/lib/${lib:t} $custdir
+        (( skipped += 1 ))
+        continue
+      fi
       ln -sfn $lib $ZSH_CUSTOM/lib/${lib:t}
     done
     for plugin in $custdir/plugins/*(N); do
+      if [[ -e $ZSH/plugins/${plugin:t} ]] \
+        && ! _omz_plus_shadow_allowed $colname $scope plugins ${plugin:t}; then
+        _omz_plus_unlink_denied $ZSH_CUSTOM/plugins/${plugin:t} $custdir
+        (( skipped += 1 ))
+        continue
+      fi
       ln -sfn $plugin $ZSH_CUSTOM/plugins/${plugin:t}
     done
     for theme in $custdir/themes/*.zsh-theme(N); do
+      if [[ -e $ZSH/themes/${theme:t} ]] \
+        && ! _omz_plus_shadow_allowed $colname $scope themes ${theme:t}; then
+        _omz_plus_unlink_denied $ZSH_CUSTOM/themes/${theme:t} $custdir
+        (( skipped += 1 ))
+        continue
+      fi
       ln -sfn $theme $ZSH_CUSTOM/themes/${theme:t}
     done
     for file in $custdir/*.zsh(N); do
       ln -sfn $file $ZSH_CUSTOM/${file:t}
     done
   done
+  if (( skipped )); then
+    echo >&2 "omz-plus: Skipped $skipped stock-colliding item(s) from zsh_custom. Run 'omz+ shadows' to review."
+  fi
 }
 
 () {
@@ -247,8 +372,12 @@ function omz_plus_setup_zsh_custom {
   # Check cache to avoid expensive operations if nothing changed
   local cache_file="$ZSH_CACHE_DIR/omz-plus/prior.zsh"
   local needs_update=0
-  local -a plugins_plus_prior zsh_custom_prior
+  local -a plugins_plus_prior zsh_custom_prior omz_plus_zstyles_prior
   local ZSH_THEME_PLUS_PRIOR
+
+  # Shadow policy zstyles must invalidate the cache too, or config
+  # changes would not take effect until the arrays also change.
+  local -a omz_plus_zstyles=(${(f)"$(zstyle -L ':omz-plus:*' 2>/dev/null)"})
 
   # If the values were the same as a prior run, then we don't need to rerun all the
   # expensive bits.
@@ -256,10 +385,17 @@ function omz_plus_setup_zsh_custom {
     source "$cache_file"
     if [[ "${(j: :)plugins_plus_prior}" != "${(j: :)plugins_plus}" ]] \
       || [[ "$ZSH_THEME_PLUS_PRIOR" != "$ZSH_THEME_PLUS" ]] \
-      || [[ "${(j: :)zsh_custom_prior}" != "${(j: :)zsh_custom}" ]]; then
+      || [[ "${(j: :)zsh_custom_prior}" != "${(j: :)zsh_custom}" ]] \
+      || [[ "${(F)omz_plus_zstyles_prior}" != "${(F)omz_plus_zstyles}" ]]; then
       needs_update=1
     fi
   else
+    needs_update=1
+  fi
+
+  # Every update run creates these, so if any are missing, $ZSH_CUSTOM was
+  # removed out from under us and must be rebuilt despite a cache hit.
+  if [[ ! -d "$ZSH_CUSTOM/repos" || ! -d "$ZSH_CUSTOM/plugins" || ! -d "$ZSH_CUSTOM/themes" ]]; then
     needs_update=1
   fi
 
@@ -287,6 +423,7 @@ function omz_plus_setup_zsh_custom {
 plugins_plus_prior=(${(q-)plugins_plus[@]})
 ZSH_THEME_PLUS_PRIOR=${(q-)ZSH_THEME_PLUS}
 zsh_custom_prior=(${(q-)zsh_custom[@]})
+omz_plus_zstyles_prior=(${(q-)omz_plus_zstyles[@]})
 EOF
   fi
 }

@@ -6,7 +6,7 @@ default:
 
 # Run the full test suite (needs network)
 test:
-    bats tests
+    bats --jobs 4 tests
 
 # Run a single test file, eg: just test-file pins
 test-file name:
