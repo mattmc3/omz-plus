@@ -64,13 +64,33 @@ function _omz_plus_parse_repo {
     repo="$match[1]"
     pinref="$match[2]"
   fi
+  # Derive a stable local name from owner/repository, including URL forms.
+  # This keeps forks with the same repository name in separate directories.
+  local repo_path=$repo owner repo_name repo_dir_name
+  if [[ "$repo_path" == *://* ]]; then
+    repo_path="${repo_path#*://}"
+    repo_path="${repo_path#*/}"
+  elif [[ "$repo_path" == *@*:* ]]; then
+    repo_path="${repo_path#*:}"
+  fi
+  repo_path="${repo_path%.git}"
+  repo_name="${repo_path##*/}"
+  if [[ "$repo_path" == */* ]]; then
+    owner="${repo_path%/*}"
+    owner="${owner//\//---}"
+    repo_dir_name="$owner---$repo_name"
+  else
+    # Preserve the old fallback for non owner/repository specs.
+    repo_dir_name="$repo_name"
+  fi
+
   # Pinned repos get the ref embedded in their directory name (full shas
-  # shortened to 7 chars, slashes in ref names made path-safe)
+  # shortened to 7 chars, slashes in ref names made path-safe).
   local refdir=$pinref
   [[ "$refdir" == [[:xdigit:]](#c40) ]] && refdir="${refdir[1,7]}"
   refdir="${refdir//\//-}"
   typeset -ga reply
-  reply=("$repo" "$pinref" "${${repo:t}%.git}${refdir:+@$refdir}")
+  reply=("$repo" "$pinref" "${repo_dir_name}${refdir:+@$refdir}")
 }
 
 ##? OMZ PLUS! command wrapper.
